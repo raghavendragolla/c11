@@ -48,9 +48,11 @@ class JobSyncWorker(
             prefs.edit().putStringSet("seen_ids", seenIds).apply()
 
             if (newMatches.isNotEmpty()) {
-                val topMatch = newMatches.maxByOrNull { it.radarMatchScore } ?: newMatches.first()
-                Log.i(TAG, "Found ${newMatches.size} new matches! Sending notification for: ${topMatch.title}")
-                PushNotificationHelper.sendJobMatchNotification(context, topMatch)
+                val topMatches = newMatches.sortedByDescending { it.radarMatchScore }.take(3)
+                Log.i(TAG, "Found ${newMatches.size} new matches! Sending notifications for top ${topMatches.size} matches")
+                for (match in topMatches) {
+                    PushNotificationHelper.sendJobMatchNotification(context, match)
+                }
             } else {
                 Log.i(TAG, "Background sync complete. No new high-match jobs above threshold ($minScore%)")
             }
@@ -71,8 +73,8 @@ class JobSyncWorker(
                 .setRequiredNetworkType(NetworkType.CONNECTED)
                 .build()
 
-            // Periodic work runs every 1 hour (WorkManager minimum interval is 15 minutes)
-            val periodicRequest = PeriodicWorkRequestBuilder<JobSyncWorker>(1, TimeUnit.HOURS)
+            // Periodic work runs every 15 minutes to 1 hour (WorkManager minimum interval is 15 minutes)
+            val periodicRequest = PeriodicWorkRequestBuilder<JobSyncWorker>(15, TimeUnit.MINUTES)
                 .setConstraints(constraints)
                 .build()
 
@@ -81,7 +83,20 @@ class JobSyncWorker(
                 ExistingPeriodicWorkPolicy.KEEP,
                 periodicRequest
             )
-            Log.i(TAG, "Periodic JobSyncWorker scheduled with 1 hour interval")
+            Log.i(TAG, "Periodic JobSyncWorker scheduled with 15 min interval")
+        }
+
+        fun syncNow(context: Context) {
+            val constraints = Constraints.Builder()
+                .setRequiredNetworkType(NetworkType.CONNECTED)
+                .build()
+
+            val oneTimeRequest = androidx.work.OneTimeWorkRequestBuilder<JobSyncWorker>()
+                .setConstraints(constraints)
+                .build()
+
+            WorkManager.getInstance(context).enqueue(oneTimeRequest)
+            Log.i(TAG, "Immediate one-time JobSyncWorker enqueued")
         }
     }
 }

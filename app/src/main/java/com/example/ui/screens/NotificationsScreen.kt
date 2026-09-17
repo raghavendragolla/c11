@@ -228,6 +228,35 @@ fun NotificationsScreen(
                             )
                         }
 
+                        // Background Auto-Sync Status
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f))
+                                .padding(12.dp)
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                RadarPulseBlip(sizeDp = 18, color = RadarMint)
+                                Column {
+                                    Text(
+                                        text = "24/7 Automatic Radar Scanner Active",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = RadarMint
+                                    )
+                                    Text(
+                                        text = "FastAPI jobs are scanned automatically in the background. When new jobs match your threshold, alerts pop up instantly without needing to open the app.",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                        }
+
                         // Minimum Score Slider
                         Column {
                             Row(
@@ -264,15 +293,16 @@ fun NotificationsScreen(
                             )
                         }
 
-                        // Simulation button
+                        // Trigger button
                         Button(
                             onClick = {
                                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && !hasSystemPermission) {
                                     permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
                                 } else {
                                     jobViewModel.triggerCustomPushTest()
+                                    com.example.notifications.JobSyncWorker.syncNow(context)
                                     coroutineScope.launch {
-                                        snackbarHostState.showSnackbar("Real Android Push Notification sent to system tray!")
+                                        snackbarHostState.showSnackbar("Dispatched alerts for top matching opportunities!")
                                     }
                                 }
                             },
@@ -285,7 +315,7 @@ fun NotificationsScreen(
                         ) {
                             Icon(Icons.Default.NotificationsActive, null, modifier = Modifier.size(18.dp))
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("Simulate Radar Push Notification", fontWeight = FontWeight.Bold)
+                            Text("Check & Send Radar Alerts Now", fontWeight = FontWeight.Bold)
                         }
                     }
                 }

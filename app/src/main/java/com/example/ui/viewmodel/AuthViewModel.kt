@@ -41,6 +41,23 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun resetPassword(username: String, newPass: String, onResult: (Boolean, String) -> Unit) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            _errorMessage.value = null
+            val result = repository.resetPassword(username, newPass)
+            result.onSuccess { msg ->
+                _isLoading.value = false
+                onResult(true, msg)
+            }.onFailure { err ->
+                _isLoading.value = false
+                val msg = err.message ?: "Failed to reset password"
+                _errorMessage.value = msg
+                onResult(false, msg)
+            }
+        }
+    }
+
     fun quickDemoLogin() {
         login("radar_pilot", "demo1234")
     }

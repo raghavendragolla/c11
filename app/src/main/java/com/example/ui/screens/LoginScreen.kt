@@ -25,6 +25,7 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Radar
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -44,6 +45,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import android.widget.Toast
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -75,6 +77,7 @@ fun LoginScreen(
     var password by remember { mutableStateOf("demo1234") }
     var passwordVisible by remember { mutableStateOf(false) }
     var showServerConfig by remember { mutableStateOf(false) }
+    var showResetPasswordDialog by remember { mutableStateOf(false) }
 
     Box(
         modifier = modifier
@@ -222,6 +225,22 @@ fun LoginScreen(
                         shape = RoundedCornerShape(12.dp)
                     )
 
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End
+                    ) {
+                        TextButton(
+                            onClick = { showResetPasswordDialog = true }
+                        ) {
+                            Text(
+                                text = "Forgot Password?",
+                                color = RadarMint,
+                                style = MaterialTheme.typography.bodySmall,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                    }
+
                     if (errorMessage != null) {
                         Text(
                             text = errorMessage!!,
@@ -281,5 +300,150 @@ fun LoginScreen(
                 onDismiss = { showServerConfig = false }
             )
         }
+
+        if (showResetPasswordDialog) {
+            ResetPasswordDialog(
+                initialUsername = username,
+                isLoading = isLoading,
+                onDismiss = { showResetPasswordDialog = false },
+                onReset = { user, newPass, onComplete ->
+                    authViewModel.resetPassword(user, newPass) { success, msg ->
+                        onComplete(success, msg)
+                        if (success) {
+                            username = user
+                            password = newPass
+                            showResetPasswordDialog = false
+                        }
+                    }
+                }
+            )
+        }
     }
+}
+
+@Composable
+fun ResetPasswordDialog(
+    initialUsername: String,
+    isLoading: Boolean,
+    onDismiss: () -> Unit,
+    onReset: (String, String, (Boolean, String) -> Unit) -> Unit
+) {
+    var user by remember { mutableStateOf(initialUsername) }
+    var newPassword by remember { mutableStateOf("") }
+    var confirmPassword by remember { mutableStateOf("") }
+    var localError by remember { mutableStateOf<String?>(null) }
+    var localSuccess by remember { mutableStateOf<String?>(null) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = "Reset Password",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold
+            )
+        },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 4.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Text(
+                    text = "Enter your username or email and choose a new password.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                OutlinedTextField(
+                    value = user,
+                    onValueChange = { user = it },
+                    label = { Text("Username / Email") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(10.dp)
+                )
+
+                OutlinedTextField(
+                    value = newPassword,
+                    onValueChange = { newPassword = it },
+                    label = { Text("New Password") },
+                    singleLine = true,
+                    visualTransformation = PasswordVisualTransformation(),
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(10.dp)
+                )
+
+                OutlinedTextField(
+                    value = confirmPassword,
+                    onValueChange = { confirmPassword = it },
+                    label = { Text("Confirm New Password") },
+                    singleLine = true,
+                    visualTransformation = PasswordVisualTransformation(),
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(10.dp)
+                )
+
+                if (localError != null) {
+                    Text(
+                        text = localError!!,
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+
+                if (localSuccess != null) {
+                    Text(
+                        text = localSuccess!!,
+                        color = RadarMint,
+                        style = MaterialTheme.typography.bodySmall,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    if (user.isBlank()) {
+                        localError = "Please enter your username"
+                        return@Button
+                    }
+                    if (newPassword.length < 4) {
+                        localError = "Password must be at least 4 characters"
+                        return@Button
+                    }
+                    if (newPassword != confirmPassword) {
+                        localError = "Passwords do not match"
+                        return@Button
+                    }
+                    localError = null
+                    onReset(user.trim(), newPassword) { success, msg ->
+                        if (success) {
+                            localSuccess = msg
+                        } else {
+                            localError = msg
+                        }
+                    }
+                },
+                enabled = !isLoading && user.isNotBlank() && newPassword.isNotBlank(),
+                colors = ButtonDefaults.buttonColors(containerColor = RadarTeal)
+            ) {
+                if (isLoading) {
+                    CircularProgressIndicator(
+                        color = MaterialTheme.colorScheme.onPrimary,
+                        modifier = Modifier.size(18.dp)
+                    )
+                } else {
+                    Text("Set New Password")
+                }
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
 }

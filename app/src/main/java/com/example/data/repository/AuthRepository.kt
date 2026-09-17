@@ -79,6 +79,21 @@ class AuthRepository(private val context: Context) {
         _isLoggedIn.value = false
     }
 
+    suspend fun resetPassword(username: String, newPass: String): Result<String> = withContext(Dispatchers.IO) {
+        try {
+            val api = ApiClientProvider.getService(context)
+            val response = api.resetPassword(mapOf("username" to username, "new_password" to newPass))
+            if (response.isSuccessful) {
+                Result.success("Password successfully reset! You can now log in.")
+            } else {
+                val err = response.errorBody()?.string() ?: "Failed to reset password."
+                Result.failure(Exception(err))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     fun getServerUrl(): String {
         return ApiClientProvider.getBaseUrl(context)
     }

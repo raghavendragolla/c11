@@ -2,6 +2,7 @@ package com.example.ui.screens
 
 import android.content.Intent
 import android.net.Uri
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -86,6 +87,11 @@ fun JobDetailScreen(
 
     val selectedJob by jobViewModel.selectedJob.collectAsState()
     val savedJobs by jobViewModel.savedJobs.collectAsState()
+
+    // Intercept swipe-to-go-back and system back key to return to job feed
+    BackHandler {
+        onBack()
+    }
 
     LaunchedEffect(jobId) {
         jobViewModel.selectJobById(jobId)

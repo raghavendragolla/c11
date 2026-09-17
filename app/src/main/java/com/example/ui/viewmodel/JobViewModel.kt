@@ -85,8 +85,22 @@ class JobViewModel(application: Application) : AndroidViewModel(application) {
         prefs.edit().putStringSet("seen_ids", seenIds).apply()
 
         if (newHighMatches.isNotEmpty()) {
-            val topMatch = newHighMatches.maxByOrNull { it.radarMatchScore } ?: newHighMatches.first()
-            PushNotificationHelper.sendJobMatchNotification(getApplication(), topMatch)
+            val topMatches = newHighMatches.sortedByDescending { it.radarMatchScore }.take(3)
+            for (match in topMatches) {
+                PushNotificationHelper.sendJobMatchNotification(getApplication(), match)
+                val newItem = NotificationItem(
+                    id = "notif_${match.id}_${System.currentTimeMillis()}",
+                    title = "🎯 Radar Hit: ${match.radarMatchScore}% Match",
+                    message = "${match.title} at ${match.company} (${match.workMode})",
+                    jobId = match.id,
+                    radarScore = match.radarMatchScore,
+                    timestamp = System.currentTimeMillis(),
+                    type = "RADAR_MATCH"
+                )
+                if (_notifications.value.none { it.jobId == match.id }) {
+                    _notifications.value = listOf(newItem) + _notifications.value
+                }
+            }
         }
     }
 
@@ -166,14 +180,21 @@ class JobViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun triggerCustomPushTest() {
-        val topJob = _jobs.value.firstOrNull()
-        if (topJob != null) {
-            triggerJobNotification(topJob)
+        val topMatches = _jobs.value
+            .filter { it.radarMatchScore >= _minNotificationScore.value }
+            .ifEmpty { _jobs.value }
+            .sortedByDescending { it.radarMatchScore }
+            .take(3)
+
+        if (topMatches.isNotEmpty()) {
+            topMatches.forEach { job ->
+                triggerJobNotification(job)
+            }
         } else {
             PushNotificationHelper.sendCustomNotification(
                 getApplication(),
                 "Career Radar Active",
-                "Radar background scanning found 3 new senior opportunities matching your FastAPI backend profile."
+                "Radar background scanner is actively monitoring FastAPI job feeds."
             )
         }
     }

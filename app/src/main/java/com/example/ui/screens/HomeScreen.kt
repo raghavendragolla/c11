@@ -42,13 +42,19 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -82,6 +88,9 @@ fun HomeScreen(
     val isLoading by jobViewModel.isLoading.collectAsState()
     val filter by jobViewModel.filter.collectAsState()
     val savedJobs by jobViewModel.savedJobs.collectAsState()
+
+    val coroutineScope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
 
     var showFilterSheet by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf(filter.query) }
@@ -153,17 +162,31 @@ fun HomeScreen(
                 }
 
                 IconButton(
-                    onClick = { jobViewModel.loadJobs() },
+                    onClick = {
+                        jobViewModel.loadJobs()
+                        coroutineScope.launch {
+                            snackbarHostState.showSnackbar("Scanning latest live jobs from FastAPI radar...")
+                        }
+                    },
                     modifier = Modifier
                         .size(40.dp)
                         .clip(CircleShape)
                         .background(Color(0x33FFFFFF))
+                        .testTag("home_refresh_btn")
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Refresh,
-                        contentDescription = "Refresh Jobs",
-                        tint = Color.White
-                    )
+                    if (isLoading) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(18.dp),
+                            color = RadarMint,
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.Default.Refresh,
+                            contentDescription = "Refresh Jobs",
+                            tint = Color.White
+                        )
+                    }
                 }
             }
         }
@@ -329,95 +352,107 @@ fun HomeScreen(
             }
         }
 
-        // Jobs Content List or Loading/Empty
+        // Jobs Content List with Pull-To-Refresh
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .weight(1f)
         ) {
-            if (isLoading && jobs.isEmpty()) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        CircularProgressIndicator(color = RadarTeal)
-                        Text(
-                            text = "Scanning FastAPI Career Radar...",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-            } else if (jobs.isEmpty()) {
-                // Empty state
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(24.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+            PullToRefreshBox(
+                isRefreshing = isLoading,
+                onRefresh = { jobViewModel.loadJobs() },
+                modifier = Modifier.fillMaxSize()
+            ) {
+                if (isLoading && jobs.isEmpty()) {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
                     ) {
                         Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(24.dp),
                             horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            RadarPulseBlip(sizeDp = 48, color = RadarCyan)
+                            CircularProgressIndicator(color = RadarTeal)
                             Text(
-                                text = "No Radar Matches Found",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Text(
-                                text = "No active jobs currently match your search criteria. Try lowering the score threshold or clearing filters.",
+                                text = "Scanning FastAPI Career Radar...",
                                 style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(horizontal = 8.dp)
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
-                            Button(
-                                onClick = {
-                                    searchQuery = ""
-                                    jobViewModel.clearFilters()
-                                },
-                                colors = ButtonDefaults.buttonColors(containerColor = RadarTeal)
+                        }
+                    }
+                } else if (jobs.isEmpty()) {
+                    // Empty state (scrollable so pull-to-refresh works even on empty state)
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .verticalScroll(rememberScrollState())
+                            .padding(24.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(16.dp),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(24.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(12.dp)
                             ) {
-                                Text("Reset All Filters")
+                                RadarPulseBlip(sizeDp = 48, color = RadarCyan)
+                                Text(
+                                    text = "No Radar Matches Found",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = "No active jobs currently match your search criteria. Try lowering the score threshold or clearing filters.",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(horizontal = 8.dp)
+                                )
+                                Button(
+                                    onClick = {
+                                        searchQuery = ""
+                                        jobViewModel.clearFilters()
+                                    },
+                                    colors = ButtonDefaults.buttonColors(containerColor = RadarTeal)
+                                ) {
+                                    Text("Reset All Filters")
+                                }
                             }
                         }
                     }
-                }
-            } else {
-                LazyColumn(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = 16.dp),
-                    contentPadding = PaddingValues(vertical = 12.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    items(
-                        items = jobs,
-                        key = { it.id }
-                    ) { job ->
-                        val isSaved = savedJobs.any { it.id == job.id }
-                        JobCard(
-                            job = job,
-                            isSaved = isSaved,
-                            onJobClick = { onJobClick(job.id) },
-                            onToggleSave = { jobViewModel.toggleSaveJob(job) }
-                        )
+                } else {
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 16.dp),
+                        contentPadding = PaddingValues(vertical = 12.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        items(
+                            items = jobs,
+                            key = { it.id }
+                        ) { job ->
+                            val isSaved = savedJobs.any { it.id == job.id }
+                            JobCard(
+                                job = job,
+                                isSaved = isSaved,
+                                onJobClick = { onJobClick(job.id) },
+                                onToggleSave = { jobViewModel.toggleSaveJob(job) }
+                            )
+                        }
                     }
                 }
             }
+
+            SnackbarHost(
+                hostState = snackbarHostState,
+                modifier = Modifier.align(Alignment.BottomCenter)
+            )
         }
     }
 

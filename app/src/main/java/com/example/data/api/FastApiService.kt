@@ -57,4 +57,9 @@ interface FastApiService {
     suspend fun registerPushToken(
         @Body tokenPayload: Map<String, String>
     ): Response<Map<String, String>>
+
+    @POST("auth/reset-password")
+    suspend fun resetPassword(
+        @Body request: Map<String, String>
+    ): Response<Map<String, Any>>
 }

@@ -3,6 +3,7 @@ package com.example.ui
 import android.Manifest
 import android.content.Context
 import android.os.Build
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.Crossfade
@@ -116,6 +117,15 @@ fun CareerRadarApp(
     if (!isLoggedIn) {
         LoginScreen(authViewModel = authViewModel)
         return
+    }
+
+    BackHandler(enabled = activeJobDetailId != null) {
+        activeJobDetailId = null
+        jobViewModel.clearSelectedJob()
+    }
+
+    BackHandler(enabled = activeJobDetailId == null && currentDestination != RadarDestination.RADAR_JOBS) {
+        currentDestination = RadarDestination.RADAR_JOBS
     }
 
     if (activeJobDetailId != null) {
