@@ -25,6 +25,7 @@ object ApiClientProvider {
     private const val KEY_USE_MOCK_FALLBACK = "use_mock_fallback"
 
     const val DEFAULT_API_URL = "http://10.0.2.2:8000/"
+    const val LAN_API_URL = "http://192.168.0.101:8000/"
 
     private var cachedBaseUrl: String? = null
     private var cachedToken: String? = null
@@ -217,7 +218,13 @@ object ApiClientProvider {
     fun getBaseUrl(context: Context): String {
         if (cachedBaseUrl == null) {
             val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-            cachedBaseUrl = prefs.getString(KEY_BASE_URL, DEFAULT_API_URL) ?: DEFAULT_API_URL
+            val isEmulator = android.os.Build.FINGERPRINT.contains("generic") || 
+                             android.os.Build.HARDWARE.contains("goldfish") || 
+                             android.os.Build.HARDWARE.contains("ranchu") ||
+                             android.os.Build.MODEL.contains("google_sdk") ||
+                             android.os.Build.MODEL.contains("Emulator")
+            val defaultUrl = if (isEmulator) DEFAULT_API_URL else LAN_API_URL
+            cachedBaseUrl = prefs.getString(KEY_BASE_URL, defaultUrl) ?: defaultUrl
         }
         return cachedBaseUrl!!
     }
@@ -251,7 +258,7 @@ object ApiClientProvider {
 
     fun isMockFallbackEnabled(context: Context): Boolean {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        return prefs.getBoolean(KEY_USE_MOCK_FALLBACK, true)
+        return prefs.getBoolean(KEY_USE_MOCK_FALLBACK, false)
     }
 
     fun setMockFallbackEnabled(context: Context, enabled: Boolean) {
