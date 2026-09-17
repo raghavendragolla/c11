@@ -62,10 +62,30 @@ class JobViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             _isLoading.value = true
             val result = repository.fetchJobs(_filter.value)
-            result.onSuccess {
-                _jobs.value = it
+            result.onSuccess { fetchedJobs ->
+                _jobs.value = fetchedJobs
+                checkForNewJobNotifications(fetchedJobs)
             }
             _isLoading.value = false
+        }
+    }
+
+    private fun checkForNewJobNotifications(freshJobs: List<Job>) {
+        if (freshJobs.isEmpty()) return
+        val prefs = getApplication<Application>().getSharedPreferences("career_radar_seen_jobs", android.content.Context.MODE_PRIVATE)
+        val seenIds = prefs.getStringSet("seen_ids", emptySet())?.toMutableSet() ?: mutableSetOf()
+
+        val threshold = _minNotificationScore.value
+        val newHighMatches = freshJobs.filter { job ->
+            !seenIds.contains(job.id) && job.radarMatchScore >= threshold
+        }
+
+        seenIds.addAll(freshJobs.map { it.id })
+        prefs.edit().putStringSet("seen_ids", seenIds).apply()
+
+        if (newHighMatches.isNotEmpty()) {
+            val topMatch = newHighMatches.maxByOrNull { it.radarMatchScore } ?: newHighMatches.first()
+            PushNotificationHelper.sendJobMatchNotification(getApplication(), topMatch)
         }
     }
 

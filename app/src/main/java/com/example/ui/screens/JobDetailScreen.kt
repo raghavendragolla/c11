@@ -167,12 +167,14 @@ fun JobDetailScreen(
 
                     Button(
                         onClick = {
-                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(job.applicationUrl))
+                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(job.applicationUrl)).apply {
+                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            }
                             try {
                                 context.startActivity(intent)
                             } catch (_: Exception) {
                                 coroutineScope.launch {
-                                    snackbarHostState.showSnackbar("Opening job link: ${job.applicationUrl}")
+                                    snackbarHostState.showSnackbar("Unable to open browser for: ${job.applicationUrl}")
                                 }
                             }
                         },
