@@ -74,10 +74,11 @@ class JobViewModel(application: Application) : AndroidViewModel(application) {
         if (freshJobs.isEmpty()) return
         val prefs = getApplication<Application>().getSharedPreferences("career_radar_seen_jobs", android.content.Context.MODE_PRIVATE)
         val seenIds = prefs.getStringSet("seen_ids", emptySet())?.toMutableSet() ?: mutableSetOf()
+        val isFirstLaunch = seenIds.isEmpty()
 
         val threshold = _minNotificationScore.value
         val newHighMatches = freshJobs.filter { job ->
-            !seenIds.contains(job.id) && job.radarMatchScore >= threshold
+            (!seenIds.contains(job.id) || isFirstLaunch) && job.radarMatchScore >= threshold
         }
 
         seenIds.addAll(freshJobs.map { it.id })

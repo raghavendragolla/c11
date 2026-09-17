@@ -23,6 +23,17 @@ class AuthRepository(private val context: Context) {
         if (!existingToken.isNullOrBlank()) {
             _isLoggedIn.value = true
             _currentUser.value = UserProfile()
+        } else {
+            // Default pilot session for Raghavendra so the app and background worker can start immediately
+            val defaultToken = "radar_session_raghavendra_active"
+            ApiClientProvider.setAuthToken(context, defaultToken)
+            _isLoggedIn.value = true
+            _currentUser.value = UserProfile(
+                id = "usr_radar_raghavendra",
+                username = "raghavendra",
+                fullName = "Raghavendra Golla",
+                targetRole = "Data Analyst / BI & ML Analyst"
+            )
         }
     }
 

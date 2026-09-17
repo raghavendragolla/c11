@@ -28,6 +28,9 @@ class MainActivity : ComponentActivity() {
 
     notificationJobId = intent?.getStringExtra("job_id")
 
+    // Automatically schedule background periodic job sync & push notifications
+    com.example.notifications.JobSyncWorker.schedule(applicationContext)
+
     setContent {
       MyApplicationTheme {
         Surface(

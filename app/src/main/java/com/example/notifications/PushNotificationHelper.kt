@@ -78,7 +78,7 @@ object PushNotificationHelper {
 
     fun getMinNotificationScore(context: Context): Int {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        return prefs.getInt(KEY_MIN_NOTIF_SCORE, 85)
+        return prefs.getInt(KEY_MIN_NOTIF_SCORE, 80)
     }
 
     fun setMinNotificationScore(context: Context, score: Int) {
